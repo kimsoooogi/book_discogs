@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Discogs Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --panel: #ffffff;
+            --primary: #0071e3;
+            --text: #1d1d1f;
+            --sub: #86868b;
+            --border: #d2d2d7;
+            --danger: #ff3b30;
+            --success: #34c759;
+            --warning: #ff9f0a;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { font-size: 26px; font-weight: 600; margin-bottom: 28px; letter-spacing: -0.5px; }
+
+        .container { display: flex; gap: 20px; width: 100%; max-width: 1200px; }
+
+        .panel {
+            flex: 1;
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            height: 760px;
+        }
+
+        h2 {
+            font-size: 16px; font-weight: 600;
+            margin: 0 0 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .search-row { display: flex; gap: 7px; margin-bottom: 14px; }
+
+        input[type="text"] {
+            flex: 1; padding: 9px 13px; font-size: 14px;
+            border: 1px solid var(--border); border-radius: 8px; outline: none;
+            transition: border-color 0.15s;
+        }
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        select {
+            padding: 9px 10px; font-size: 13px; border-radius: 8px;
+            border: 1px solid var(--border); outline: none; background: #fff; cursor: pointer;
+        }
+
+        button {
+            background: var(--primary); color: #fff; border: none;
+            padding: 9px 15px; font-size: 13px; font-weight: 500;
+            border-radius: 8px; cursor: pointer; transition: opacity 0.15s;
+            white-space: nowrap;
+        }
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.45; cursor: not-allowed; }
+        button.secondary { background: #e8e8ed; color: var(--text); }
+        button.danger {
+            background: transparent; color: var(--danger);
+            padding: 5px 11px; border: 1px solid var(--danger); font-size: 12px;
+        }
+        button.danger:hover { background: var(--danger); color: #fff; }
+
+        .scroll-area { flex: 1; overflow-y: auto; padding-right: 4px; }
+        .scroll-area::-webkit-scrollbar { width: 5px; }
+        .scroll-area::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+        .book-card {
+            background: #fafafa; border: 1px solid var(--border);
+            border-radius: 8px; padding: 14px; margin-bottom: 10px;
+            display: flex; gap: 14px; align-items: flex-start;
+        }
+        .book-cover {
+            width: 80px; height: 112px; object-fit: cover;
+            border-radius: 4px; border: 1px solid #e5e5ea;
+            background: #eee; flex-shrink: 0;
+        }
+        .book-info { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+        .book-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .book-meta { font-size: 12px; color: var(--sub); }
+        .card-actions { margin-top: auto; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+        .status-badge {
+            display: inline-block; font-size: 11px; font-weight: 500;
+            padding: 3px 8px; border-radius: 5px;
+        }
+        .status-badge.wishing  { background: #e8f4fd; color: #0066cc; }
+        .status-badge.reading  { background: #fff4e0; color: #b36200; }
+        .status-badge.completed { background: #e6f9ed; color: #1a7a3c; }
+
+        .pagination {
+            display: flex; justify-content: center; gap: 5px;
+            margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            background: #fff; color: var(--text); border: 1px solid var(--border);
+            padding: 5px 11px; border-radius: 6px; font-size: 12px; min-width: 32px;
+        }
+        .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .page-btn:hover:not(.active) { background: #f0f0f5; }
+
+        .empty-msg { text-align: center; color: var(--sub); font-size: 14px; padding: 40px 0; }
+        .error-msg { text-align: center; color: var(--danger); font-size: 14px; padding: 40px 0; }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .panel { height: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>📚 Book Discogs System</h1>
+
+<div class="container">
+
+    <!-- 검색 패널 -->
+    <div class="panel">
+        <h2>외부 데이터 검색</h2>
+        <div class="search-row">
+            <select id="queryTypeSelect">
+                <option value="Keyword">통합</option>
+                <option value="Title">제목</option>
+                <option value="Author">저자</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="검색어 입력..."
+                   onkeydown="if(event.key==='Enter') searchBooks()">
+            <select id="sortSelect">
+                <option value="Accuracy">정확도순</option>
+                <option value="PublishTime">최신순</option>
+                <option value="SalesPoint">판매량순</option>
+            </select>
+            <button id="searchBtn" onclick="searchBooks()">검색</button>
+        </div>
+        <div id="searchResults" class="scroll-area">
+            <p class="empty-msg">검색어를 입력하세요.</p>
+        </div>
+    </div>
+
+    <!-- 라이브러리 패널 -->
+    <div class="panel">
+        <h2>
+            <span>내 라이브러리 <span id="libraryCount" style="color:var(--primary)">0</span>권</span>
+            <button class="secondary" onclick="loadLibrary(1)" style="font-size:12px; padding:6px 12px;">새로고침</button>
+        </h2>
+        <div id="libraryResults" class="scroll-area"></div>
+        <div id="paginationControls" class="pagination"></div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+<script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const LIMIT = 10;
+    let currentPage = 1;
+
+    // ── 유틸 ──────────────────────────────────────
+    function toast(msg, type = "success") {
+        const colors = { success: var(--success), error: "#ff3b30", info: "#0071e3" };
+        Toastify({
+            text: msg, duration: 3000, gravity: "bottom", position: "right",
+            style: {
+                background: type === "success" ? "#34c759" : (type === "error" ? "#ff3b30" : "#0071e3"),
+                borderRadius: "8px", fontSize: "13px"
+            }
+        }).showToast();
+    }
+
+    async function apiFetch(url, options = {}) {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw { status: res.status, detail: body.detail || `HTTP ${res.status}` };
+        }
+        return res.json();
+    }
+
+    function statusBadge(status) {
+        const labels = { wishing: "📌 Wishing", reading: "📖 Reading", completed: "✅ Completed" };
+        return `<span class="status-badge ${status}">${labels[status] ?? status}</span>`;
+    }
+
+    // ── 1. 검색 ──────────────────────────────────
+    async function searchBooks() {
+        const query = document.getElementById("searchInput").value.trim();
+        if (!query) { toast("검색어를 입력하세요.", "error"); return; }
+
+        const queryType = document.getElementById("queryTypeSelect").value;
+        const sortBy    = document.getElementById("sortSelect").value;
+        const btn       = document.getElementById("searchBtn");
+        const resultsDiv = document.getElementById("searchResults");
+
+        btn.disabled = true;
+        resultsDiv.innerHTML = "<p class='empty-msg'>검색 중…</p>";
+
+        try {
+            const data = await apiFetch(
+                `${API_BASE}/search?keyword=${encodeURIComponent(query)}&query_type=${queryType}&sort_by=${sortBy}`
+            );
+
+            if (!data.items.length) {
+                resultsDiv.innerHTML = "<p class='empty-msg'>검색 결과가 없습니다.</p>";
+                return;
+            }
+
+            resultsDiv.innerHTML = data.items.map(book => `
+                <div class="book-card">
+                    <img class="book-cover"
+                         src="${book.cover_url || ''}"
+                         alt="표지"
+                         onerror="this.src='https://via.placeholder.com/80x112?text=No+Cover'">
+                    <div class="book-info">
+                        <div class="book-title" title="${escHtml(book.title)}">${escHtml(book.title)}</div>
+                        <div class="book-meta">${escHtml(book.author)}</div>
+                        <div class="book-meta">${escHtml(book.publisher)} · ${book.pub_year || '-'}</div>
+                        <div class="card-actions">
+                            <span class="book-meta">ISBN ${book.isbn}</span>
+                            <button onclick='addToLibrary(${JSON.stringify(book).replace(/'/g,"&#39;")})'
+                                    style="padding:5px 11px; font-size:12px;">+ 추가</button>
+                        </div>
+                    </div>
+                </div>
+            `).join("");
+            toast(`${data.total_found}건 검색됨`);
+
+        } catch (e) {
+            const msg = e.detail ?? "서버 통신 실패";
+            resultsDiv.innerHTML = `<p class='error-msg'>${escHtml(msg)}</p>`;
+            toast(msg, "error");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ── 2. 라이브러리 추가 ───────────────────────
+    async function addToLibrary(book) {
+        try {
+            await apiFetch(`${API_BASE}/library`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(book)
+            });
+            toast("라이브러리에 추가되었습니다.");
+            loadLibrary(1);
+        } catch (e) {
+            const msg = e.status === 409 ? "이미 라이브러리에 있는 도서입니다." : (e.detail ?? "추가 실패");
+            toast(msg, "error");
+        }
+    }
+
+    // ── 3. 라이브러리 조회 ───────────────────────
+    async function loadLibrary(page = 1) {
+        currentPage = page;
+        const listDiv   = document.getElementById("libraryResults");
+        const countEl   = document.getElementById("libraryCount");
+        const pageDiv   = document.getElementById("paginationControls");
+
+        try {
+            const [countData, books] = await Promise.all([
+                apiFetch(`${API_BASE}/library/count`),
+                apiFetch(`${API_BASE}/library?skip=${(page - 1) * LIMIT}&limit=${LIMIT}`)
+            ]);
+
+            const total = countData.total_count;
+            countEl.textContent = total;
+
+            if (!books.length) {
+                listDiv.innerHTML = "<p class='empty-msg'>라이브러리가 비어 있습니다.</p>";
+                pageDiv.innerHTML = "";
+                return;
+            }
+
+            const offset = (page - 1) * LIMIT;
+            listDiv.innerHTML = books.map((b, i) => `
+                <div class="book-card">
+                    <img class="book-cover"
+                         src="${b.cover_url || ''}"
+                         alt="표지"
+                         onerror="this.src='https://via.placeholder.com/80x112?text=No+Cover'">
+                    <div class="book-info">
+                        <div class="book-title" title="${escHtml(b.title)}">${offset + i + 1}. ${escHtml(b.title)}</div>
+                        <div class="book-meta">${escHtml(b.author)} · ${escHtml(b.publisher)} (${b.pub_year || '-'})</div>
+                        <div class="card-actions">
+                            <select onchange="updateStatus(${b.id}, this.value)" style="font-size:12px;">
+                                <option value="wishing"   ${b.status==='wishing'   ?'selected':''}>📌 Wishing</option>
+                                <option value="reading"   ${b.status==='reading'   ?'selected':''}>📖 Reading</option>
+                                <option value="completed" ${b.status==='completed' ?'selected':''}>✅ Completed</option>
+                            </select>
+                            <button class="danger" onclick="deleteBook(${b.id})">삭제</button>
+                        </div>
+                    </div>
+                </div>
+            `).join("");
+
+            renderPagination(total);
+
+        } catch (e) {
+            listDiv.innerHTML = "<p class='error-msg'>데이터 로드 실패</p>";
+            pageDiv.innerHTML = "";
+            countEl.textContent = "0";
+            toast(e.detail ?? "데이터 로딩 실패", "error");
+        }
+    }
+
+    function renderPagination(total) {
+        const pages = Math.ceil(total / LIMIT);
+        document.getElementById("paginationControls").innerHTML = Array.from({ length: pages }, (_, i) => {
+            const p = i + 1;
+            return p === currentPage
+                ? `<button class="page-btn active">${p}</button>`
+                : `<button class="page-btn" onclick="loadLibrary(${p})">${p}</button>`;
+        }).join("");
+    }
+
+    // ── 4. 상태 변경 ─────────────────────────────
+    async function updateStatus(bookId, status) {
+        try {
+            await apiFetch(`${API_BASE}/library/${bookId}/status`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status })
+            });
+            toast("상태가 변경되었습니다.");
+        } catch (e) {
+            toast(e.detail ?? "상태 변경 실패", "error");
+            loadLibrary(currentPage);
+        }
+    }
+
+    // ── 5. 삭제 ──────────────────────────────────
+    async function deleteBook(bookId) {
+        if (!confirm("이 도서를 라이브러리에서 삭제하시겠습니까?")) return;
+        try {
+            await apiFetch(`${API_BASE}/library/${bookId}`, { method: "DELETE" });
+            toast("도서가 삭제되었습니다.");
+            // 마지막 페이지 아이템 삭제 시 앞 페이지로 이동
+            const countData = await apiFetch(`${API_BASE}/library/count`);
+            const maxPage = Math.max(1, Math.ceil(countData.total_count / LIMIT));
+            loadLibrary(Math.min(currentPage, maxPage));
+        } catch (e) {
+            toast(e.detail ?? "삭제 실패", "error");
+        }
+    }
+
+    // ── XSS 방지 ─────────────────────────────────
+    function escHtml(str) {
+        return String(str ?? "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[c]));
+    }
+
+    // 초기 로드
+    loadLibrary(1);
+</script>
+</body>
+</html>
