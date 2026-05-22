@@ -136,7 +136,7 @@ ALADIN_TTB_KEY=your_ttb_key_here
 ALLOWED_ORIGINS=http://localhost:5500
 ```
 
-> 알라딘 API 키는 [알라딘 TTB](https://www.aladin.co.kr/ttb/wbloglist.aspx) 에서 발급받을 수 있습니다.
+> 알라딘 API 키는 [알라딘 TTB](https://www.aladin.co.kr/ttb/wblog_manage.aspx) 에서 발급받을 수 있습니다.
 
 ### 5. 서버 실행
 
